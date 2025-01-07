@@ -4,15 +4,18 @@ import Button from '@/components/ui/Button'
 import { FC, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 
 const Page: FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [username, setUsername] = useState<string>('')
   const [password, setPassword] = useState<string>('')
+  const router = useRouter()
 
   async function loginWithCredentials(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
+    console.log(`${username} and ${password}`)
     
     try {
       const result = await signIn('credentials', {
@@ -23,6 +26,9 @@ const Page: FC = () => {
 
       if (result?.error) {
         toast.error('Invalid credentials')
+      } else if (result?.ok) {
+        toast.success('Logged in successfully!')
+        router.push('/dashboard')
       }
     } catch (error) {
       toast.error('Something went wrong with your login.')
