@@ -49,6 +49,8 @@ const AddFriendButton: FC<AddFriendButtonProps> = ({}) => {
   }
 
   const onSubmit = (data: FormData) => {
+    console.log("check email")
+    console.log(data.email)
     addFriend(data.email)
   }
 
