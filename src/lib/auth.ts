@@ -21,11 +21,20 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Check for hardcoded admin credentials
+
         if (credentials.username === 'admin' && credentials.password === 'admin') {
           return {
             id: '1',
             name: 'Admin',
             email: 'admin@example.com',
+          }
+        }
+
+        if (credentials.username === 'user' && credentials.password === 'user') {
+          return {
+            id: '2',
+            name: 'User',
+            email: 'user@example.com',
           }
         }
 
