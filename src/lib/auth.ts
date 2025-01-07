@@ -1,70 +1,49 @@
 import { NextAuthOptions } from 'next-auth'
-import { UpstashRedisAdapter } from '@next-auth/upstash-redis-adapter'
-import { db } from './db'
-import GoogleProvider from 'next-auth/providers/google'
-import { fetchRedis } from '@/helpers/redis'
-
-function getGoogleCredentials() {
-  const clientId = process.env.GOOGLE_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-
-  if (!clientId || clientId.length === 0) {
-    throw new Error('Missing GOOGLE_CLIENT_ID')
-  }
-
-  if (!clientSecret || clientSecret.length === 0) {
-    throw new Error('Missing GOOGLE_CLIENT_SECRET')
-  }
-
-  return { clientId, clientSecret }
-}
+import CredentialsProvider from 'next-auth/providers/credentials'
 
 export const authOptions: NextAuthOptions = {
-  adapter: UpstashRedisAdapter(db),
   session: {
     strategy: 'jwt',
   },
-
   pages: {
     signIn: '/login',
   },
   providers: [
-    GoogleProvider({
-      clientId: getGoogleCredentials().clientId,
-      clientSecret: getGoogleCredentials().clientSecret,
-    }),
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        username: { label: "Username", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) {
+          return null
+        }
+
+        // Check for hardcoded admin credentials
+        if (credentials.username === 'admin' && credentials.password === 'admin') {
+          return {
+            id: '1',
+            name: 'Admin',
+            email: 'admin@example.com',
+          }
+        }
+
+        return null
+      }
+    })
   ],
   callbacks: {
     async jwt({ token, user }) {
-      const dbUserResult = (await fetchRedis('get', `user:${token.id}`)) as
-        | string
-        | null
-
-      if (!dbUserResult) {
-        if (user) {
-          token.id = user!.id
-        }
-
-        return token
+      if (user) {
+        token.id = user.id
       }
-
-      const dbUser = JSON.parse(dbUserResult) as User
-
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-      }
+      return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id
-        session.user.name = token.name
-        session.user.email = token.email
-        session.user.image = token.picture
       }
-
       return session
     },
     redirect() {
