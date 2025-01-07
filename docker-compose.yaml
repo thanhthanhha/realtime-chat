@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: my_redis
+    command: redis-server --requirepass Blud1234567
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      - REDIS_PASSWORD=Blud1234567
+    restart: unless-stopped
+
+volumes:
+  redis_data:
