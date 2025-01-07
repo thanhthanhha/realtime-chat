@@ -1,5 +1,9 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import { db } from './db'
+import { fetchRedis } from '@/helpers/redis'
+import { createRedisInstance } from '@auth/redis-adapter'
+
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -10,6 +14,7 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     CredentialsProvider({
+      adapter: createRedisInstance(db),
       name: 'Credentials',
       credentials: {
         username: { label: "Username", type: "text" },
