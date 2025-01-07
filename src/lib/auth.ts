@@ -2,7 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from './db'
 import { fetchRedis } from '@/helpers/redis'
-import { IORedisAdapter } from "@/lib/IORedisAdapter";
+import { IORedisAdapter } from "@/lib/redis_adapter/IORedisAdapter";
 import { createRedisInstance } from '@auth/redis-adapter'
 
 
