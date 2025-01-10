@@ -1,6 +1,20 @@
-import { Redis } from '@upstash/redis'
+import { DynamoDB, DynamoDBClientConfig } from "@aws-sdk/client-dynamodb"
+import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb"
 
-export const db = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+const config: DynamoDBClientConfig = {
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY!,
+    secretAccessKey: process.env.AWS_ACCESS_SECRET!,
+  },
+  region: process.env.AWS_REGION || 'us-east-1',
+}
+
+const client = DynamoDBDocument.from(new DynamoDB(config), {
+  marshallOptions: {
+    convertEmptyValues: true,
+    removeUndefinedValues: true,
+    convertClassInstanceToMap: true,
+  },
 })
+
+export { client as dynamoDb }

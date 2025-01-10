@@ -1,5 +1,5 @@
 import { getFriendsByUserId } from '@/helpers/get-friends-by-user-id'
-import { fetchRedis } from '@/helpers/redis'
+import { queryDynamoDB } from '@/helpers/dynamodb'
 import { authOptions } from '@/lib/auth'
 import { chatHrefConstructor } from '@/lib/utils'
 import { ChevronRight } from 'lucide-react'
