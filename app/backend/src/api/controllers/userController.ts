@@ -7,6 +7,15 @@ export class UserController {
 
   constructor() {
     this.userRepository = new UserRepository();
+
+    // Bind all methods to preserve 'this' context
+    this.createUser = this.createUser.bind(this);
+    this.getUserById = this.getUserById.bind(this);
+    this.updateUser = this.updateUser.bind(this);
+    this.deleteUser = this.deleteUser.bind(this);
+    this.addFriend = this.addFriend.bind(this);
+    this.removeFriend = this.removeFriend.bind(this);
+    this.getFriendlist = this.getFriendlist.bind(this);
   }
 
   async createUser(req: Request, res: Response): Promise<void> {
