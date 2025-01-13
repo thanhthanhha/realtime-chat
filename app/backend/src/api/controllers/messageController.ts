@@ -7,6 +7,13 @@ export class MessageController {
 
   constructor() {
     this.messageRepository = new MessageRepository();
+
+    this.createMessage = this.createMessage.bind(this);
+    this.getMessageById = this.getMessageById.bind(this);
+    this.getMessagesBySenderId = this.getMessagesBySenderId.bind(this);
+    this.getMessagesByReceiverId = this.getMessagesByReceiverId.bind(this);
+    this.getMessagesByChatroomId = this.getMessagesByChatroomId.bind(this);
+    this.deleteMessage = this.deleteMessage.bind(this);
   }
 
   async createMessage(req: Request, res: Response): Promise<void> {

@@ -9,6 +9,12 @@ export class FriendRequestController {
   constructor() {
     this.friendRequestRepository = new FriendRequestRepository();
     this.userRepository = new UserRepository();
+
+    // Bind all methods to the class instance
+    this.createFriendRequest = this.createFriendRequest.bind(this);
+    this.getPendingRequests = this.getPendingRequests.bind(this);
+    this.getSentRequests = this.getSentRequests.bind(this);
+    this.deleteFriendRequest = this.deleteFriendRequest.bind(this);
   }
 
   async createFriendRequest(req: Request, res: Response): Promise<void> {
