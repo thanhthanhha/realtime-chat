@@ -4,8 +4,46 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/server.js",
-    "dev": "ts-node -r tsconfig-paths/register src/server.ts",
-    "build": "tsc"
+    "dev": "nodemon --exec 'ts-node -r tsconfig-paths/register' src/server.ts",
+    "build": "tsc",
+    "test": "jest --detectOpenHandles --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:user": "jest user.test.ts",
+    "test:message": "jest message.test.ts",
+    "test:chat": "jest chat.test.ts",
+    "test:friend": "jest friendRequest.test.ts",
+    "test:ci": "jest --ci --collectCoverage --coverageDirectory='coverage'"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/__tests__"],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ],
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    },
+    "verbose": true
   },
   "keywords": [],
   "author": "",
