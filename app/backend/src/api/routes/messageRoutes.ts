@@ -36,7 +36,7 @@ router.get(
 
 // Delete a specific message
 router.delete(
-  '/messages/:id',
+  '/:id',
   messageController.deleteMessage
 );
 
