@@ -1,12 +1,12 @@
 import request from 'supertest';
-import app from '@/app';
-import { FriendRequestRepository } from '@/db/repositories/friendRequestRepository';
-import { UserRepository } from '@/db/repositories/userRepository';
-import { FriendRequest, User } from '@/types/models';
+import app from '../src/app';
+import { FriendRequestRepository } from '../src/db/repositories/friendRequestRepository';
+import { UserRepository } from '../src/db/repositories/userRepository';
+import { FriendRequest, User } from '../src/types/models';
 
 // Mock the repositories
-jest.mock('@/db/repositories/friendRequestRepository');
-jest.mock('@/db/repositories/userRepository');
+jest.mock('../src/db/repositories/friendRequestRepository');
+jest.mock('../src/db/repositories/userRepository');
 
 describe('Friend Request API', () => {
   let mockFriendRequestRepo: jest.Mocked<FriendRequestRepository>;
