@@ -1,5 +1,4 @@
-// src/test/friendRequest.test.ts
-import request from 'supertest';
+import supertest from 'supertest';  // Changed from 'request' to 'supertest'
 import app from '../src/app';
 import { setupTestDatabase } from './setup';
 import { FriendRequest, User } from '../src/types/models';
@@ -35,7 +34,7 @@ describe('Friend Request API Integration Tests', () => {
 
   describe('POST /api/friendRequest', () => {
     it('should create a new friend request', async () => {
-      const response = await request(app)
+      const response = await supertest(app)  // Using supertest instead of request
         .post('/api/friendRequest')
         .send({
           senderId: testUser1.id,
@@ -58,7 +57,7 @@ describe('Friend Request API Integration Tests', () => {
 
     it('should prevent duplicate friend requests', async () => {
       // Create initial request
-      await request(app)
+      await supertest(app)
         .post('/api/friendRequest')
         .send({
           senderId: testUser1.id,
@@ -66,7 +65,7 @@ describe('Friend Request API Integration Tests', () => {
         });
 
       // Attempt duplicate request
-      const response = await request(app)
+      const response = await supertest(app)
         .post('/api/friendRequest')
         .send({
           senderId: testUser1.id,
@@ -86,7 +85,7 @@ describe('Friend Request API Integration Tests', () => {
         receiverId: testUser2.id
       });
 
-      const response = await request(app)
+      const response = await supertest(app)
         .get(`/api/friendRequest/pending/${testUser2.id}`);
 
       expect(response.status).toBe(200);
@@ -106,7 +105,7 @@ describe('Friend Request API Integration Tests', () => {
         receiverId: testUser2.id
       });
 
-      const response = await request(app)
+      const response = await supertest(app)
         .delete(`/api/friendRequest/${friendRequest.id}`);
 
       expect(response.status).toBe(200);
