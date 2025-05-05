@@ -87,10 +87,12 @@ The terraform directory contains infrastructure-as-code for provisioning an Amaz
 - **Deployments**: Container specifications and replica configurations
 - **Services**: Internal networking and load balancing
 - **Ingress**: External access configuration
+- **Redis**: Redis for system cache
+- **RabbitMQ**: RabbitMQ for messaging
 
 
 
-### Environment Components (`environment/`)
+#### Environment Components (`k8s/environment/`)
 
 - **ArgoCD**: GitOps continuous delivery tool for Kubernetes
   - Application definitions
@@ -102,7 +104,7 @@ The terraform directory contains infrastructure-as-code for provisioning an Amaz
   - Rate limiting
   - Path-based routing
 
-###  Advanced Deployment (`environment/advance/`)
+#### Advanced Deployment (`k8s/advance/`)
   - Blue/Green deployment strategy using Argo Rollouts
   - Progressive delivery configurations
   - Automated rollback policies
