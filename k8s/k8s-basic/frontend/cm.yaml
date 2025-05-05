@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: default
+  labels:
+    app: frontend
+data:
+  REDIS_URL: "redis://default:Blud1234567@realchat-redis-master.redis.svc.cluster.local:6379"  # Using the redis service name from k8s-env
+  REDIS_CONNECTION_TYPE: "local"
+  BACKEND_URL: "http://chat-backend:3000"  # For server-side requests
+  WEBSOCKET_SERVER: ""  # Empty if use ingress
+  NEXTAUTH_SECRET: "random"
+  NODE_ENV: "development"

@@ -1,0 +1,126 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout
+spec:
+  strategy:
+    blueGreen:
+      activeService: service
+      previewService: green
+      autoPromotionEnabled: false
+  replicas: 1 # kustomize
+  selector:
+    matchLabels:
+      app: chat-api
+  template:
+    metadata:
+      labels:
+        app: chat-api
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnspecified: DoNotSchedule
+          labelSelector:
+            app: chat-api
+      initContainers:
+        - name: wait-for-backend
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup chat-backend.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local && wget --spider -T 1 http://${EXTERNAL_API_URL}/health; do echo waiting for backend; sleep 2; done;']
+          env:
+          - name: EXTERNAL_API_URL
+            valueFrom:
+              configMapKeyRef:
+                name: cm
+                key: EXTERNAL_API_URL
+        - name: wait-for-rabbitmq
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup ${RABBITMQ_NS} && nc -z ${RABBITMQ_NS} 5672; do echo waiting for rabbitmq; sleep 2; done;']
+          env:
+          - name: RABBITMQ_NS
+            valueFrom:
+              configMapKeyRef:
+                name: cm
+                key: RABBITMQ_NS
+      containers:
+      - name: main
+        image: image          #kustomize
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: ""
+            cpu: ""
+          limites:
+            memory: ""
+            cpu: ""
+        ports:
+        - name: http
+          containerPort: 5666
+          protocol: TCP
+        readinessProbe:       #kustomize
+          httpGets:
+            path: /
+            port: 5666
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 1
+        livenessProbeProbe:      #kustomize
+          httpGets:
+            path: /
+            port: 5666
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 3
+        envFrom:
+        - configMapRef:
+            name: cm            #kustomize
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SVCPOD
+          valueFrom:
+            configMapKeyRef:
+              name: cm
+              key: SVCPOD
+        - name: LOG_PATH
+          value: /data/logs/$(SVCPOD)/
+
+        # Other environment variables as needed
+        volumeMounts:
+        - name : logs-pv
+          mountPath: /data/logs
+        # - name : chat-api-pv
+        #   mountPath: /app/uploads
+      
+      - name: zabbix-agentd
+        image: zabbix-image
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "80m"
+          limites:
+            memory: "100Mi"
+            cpu: "80m"
+          volumeMounts:
+          - name: zabbix-agent-cm
+            mountPath: /etc/zabbix/zabbix_agentd.conf
+            subPath: zabbix_agentd.conf
+
+      terminationGracePeriodSeconds: 1000
+      volumes:
+      - name: logs-pv
+        persistentVolumeClaim:
+          claimName: logs-pvc
+      - name: chat-api-pv
+        persistentVolumeClaim:
+          claimName: chat-api-pvc
+      - name: zabbix-agent-cm
+        configMap:
+          name: zabbix-agent-cm

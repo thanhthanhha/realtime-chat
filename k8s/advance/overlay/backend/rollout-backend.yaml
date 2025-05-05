@@ -1,0 +1,109 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout
+spec:
+  strategy:
+    blueGreen:
+      activeService: service
+      previewService: green
+      autoPromotionEnabled: false
+  replicas: 1 # kustomize
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnspecified: DoNotSchedule
+          labelSelector:
+            app: backend
+      containers:
+      - name: main
+        image: image          #kustomize
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: ""
+            cpu: ""
+          limites:
+            memory: ""
+            cpu: ""
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        readinessProbe:       #kustomize
+          httpGets:
+            path: /
+            port: 3000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 1
+        livenessProbeProbe:      #kustomize
+          httpGets:
+            path: /
+            port: 3000
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 3
+        envFrom:
+        - configMapRef:
+            name: cm            #kustomize
+        - secretRef:
+            name: db-secret     #kustomize
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SVCPOD
+          valueFrom:
+            configMapKeyRef:
+              name: cm
+              key: SVCPOD
+        - name: LOG_PATH
+          value: /data/logs/$(SVCPOD)/
+
+        # Other environment variables as needed
+        volumeMounts:
+        - name : logs-pv
+          mountPath: /data/logs
+        # - name : backend-pv
+        #   mountPath: /app/uploads
+      
+      - name: zabbix-agentd
+        image: zabbix-image
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "80m"
+          limites:
+            memory: "100Mi"
+            cpu: "80m"
+          volumeMounts:
+          - name: zabbix-agent-cm
+            mountPath: /etc/zabbix/zabbix_agentd.conf
+            subPath: zabbix_agentd.conf
+
+      terminationGracePeriodSeconds: 1000
+      volumes:
+      - name: logs-pv
+        persistentVolumeClaim:
+          claimName: logs-pvc
+      - name: backend-pv
+        persistentVolumeClaim:
+          claimName: backend-pvc
+      - name: zabbix-agent-cm
+        configMap:
+          name: zabbix-agent-cm

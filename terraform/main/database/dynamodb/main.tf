@@ -1,192 +1,27 @@
-provider "aws" {
-  region = "eu-west-1"
+locals {
+  common_config = var.common_config
 }
 
-# User Table
-module "dynamodb_users_table" {
-  source = "../module/database/dynamodb"
+module "dynamodb_tables" {
+  for_each = var.tables
+  source   = "../../../../module/database/dynamodb"
 
-  name                        = "users"
-  hash_key                    = "id"
-  table_class                 = "STANDARD"
-  deletion_protection_enabled = true
-  stream_enabled             = true
-  stream_view_type           = "NEW_AND_OLD_IMAGES"
+  name                        = each.value.name
+  hash_key                    = each.value.hash_key
+  table_class                 = local.common_config.table_class
+  deletion_protection_enabled = local.common_config.deletion_protection_enabled
+  stream_enabled             = local.common_config.stream_enabled
+  stream_view_type           = local.common_config.stream_view_type
+  billing_mode               = local.common_config.billing_mode
+  attributes                 = each.value.attributes
+  global_secondary_indexes   = each.value.global_secondary_indexes
 
-  attributes = [
+  tags = merge(
+    each.value.tags,
     {
-      name = "id"
-      type = "S"
-    },
-    {
-      name = "name"
-      type = "S"
-    },
-    {
-      name = "email"
-      type = "S"
-    },
-    {
-      name = "user_id"
-      type = "S"
+      Environment = var.environment
+      ManagedBy   = "Terragrunt"
+      Terraform   = "true"
     }
-  ]
-
-  global_secondary_indexes = [
-    {
-      name               = "NameIndex"
-      hash_key          = "name"
-      projection_type   = "ALL"
-    },
-    {
-      name               = "EmailIndex"
-      hash_key          = "email"
-      projection_type   = "ALL"
-    },
-    {
-      name               = "UserIdIndex"
-      hash_key          = "user_id"
-      projection_type   = "ALL"
-    }
-  ]
-
-  tags = {
-    Environment = "production"
-    Service     = "user-management"
-  }
-}
-
-# Chat Table
-module "dynamodb_chats_table" {
-  source = "../module/database/dynamodb"
-
-  name                        = "chats"
-  hash_key                    = "id"
-  table_class                 = "STANDARD"
-  deletion_protection_enabled = true
-  stream_enabled             = true
-  stream_view_type           = "NEW_AND_OLD_IMAGES"
-
-  attributes = [
-    {
-      name = "id"
-      type = "S"
-    },
-    {
-      name = "chat_owner"
-      type = "S"
-    }
-  ]
-
-  global_secondary_indexes = [
-    {
-      name               = "ChatOwnerIndex"
-      hash_key          = "chat_owner"
-      projection_type   = "ALL"
-    }
-  ]
-
-  tags = {
-    Environment = "production"
-    Service     = "chat-service"
-  }
-}
-
-# Message Table
-module "dynamodb_messages_table" {
-  source = "../module/database/dynamodb"
-
-  name                        = "messages"
-  hash_key                    = "id"
-  table_class                 = "STANDARD"
-  deletion_protection_enabled = true
-  stream_enabled             = true
-  stream_view_type           = "NEW_AND_OLD_IMAGES"
-
-  attributes = [
-    {
-      name = "id"
-      type = "S"
-    },
-    {
-      name = "chatroom_id"
-      type = "S"
-    },
-    {
-      name = "sender_id"
-      type = "S"
-    },
-    {
-      name = "receiver_id"
-      type = "S"
-    }
-  ]
-
-  global_secondary_indexes = [
-    {
-      name               = "ChatroomIndex"
-      hash_key          = "chatroom_id"
-      projection_type   = "ALL"
-    },
-    {
-      name               = "SenderIndex"
-      hash_key          = "sender_id"
-      projection_type   = "ALL"
-    },
-    {
-      name               = "ReceiverIndex"
-      hash_key          = "receiver_id"
-      projection_type   = "ALL"
-    }
-  ]
-
-  tags = {
-    Environment = "production"
-    Service     = "messaging-service"
-  }
-}
-
-# FriendRequest Table
-module "dynamodb_friend_requests_table" {
-  source = "../module/database/dynamodb"
-
-  name                        = "friend_requests"
-  hash_key                    = "id"
-  table_class                 = "STANDARD"
-  deletion_protection_enabled = true
-  stream_enabled             = true
-  stream_view_type           = "NEW_AND_OLD_IMAGES"
-
-  attributes = [
-    {
-      name = "id"
-      type = "S"
-    },
-    {
-      name = "sender_id"
-      type = "S"
-    },
-    {
-      name = "receiver_id"
-      type = "S"
-    }
-  ]
-
-  global_secondary_indexes = [
-    {
-      name               = "SenderIndex"
-      hash_key          = "sender_id"
-      projection_type   = "ALL"
-    },
-    {
-      name               = "ReceiverIndex"
-      hash_key          = "receiver_id"
-      projection_type   = "ALL"
-    }
-  ]
-
-  tags = {
-    Environment = "production"
-    Service     = "friend-service"
-  }
+  )
 }

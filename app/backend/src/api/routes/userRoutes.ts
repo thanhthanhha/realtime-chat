@@ -5,8 +5,11 @@ const router = Router();
 const userController = new UserController();
 
 router.post('/', userController.createUser);
+router.get('/', userController.getAllUsers);
 router.get('/:id', userController.getUserById);
+router.get('/email/:email', userController.getUserByEmail);
 router.put('/:id', userController.updateUser);
+router.put('/:id/password', userController.updateUserPassword);
 router.delete('/:id', userController.deleteUser);
 
 router.post('/friends/add', userController.addFriend);

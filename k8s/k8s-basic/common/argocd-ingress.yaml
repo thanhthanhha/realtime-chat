@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress-custom
+  namespace: argo-cd
+  annotations:
+    # This annotation ensures that the /rabbitmq prefix is removed before forwarding to the pod
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # This tells Nginx to preserve the original URL for redirect purposes
+    #nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /argocd(/|$)(.*)
+        pathType: ImplementationSpecific 
+        backend:
+          service:
+            name: realchat-argo-cd-argocd-server
+            port:
+              number: 443

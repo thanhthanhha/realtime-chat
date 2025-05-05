@@ -1,0 +1,12 @@
+---
+# ConfigMap for environment variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-api-config
+  namespace: default
+data:
+  RABBITMQ_URL: "amqp://admin:admin123@realchat-rabbitmq.rabbitmq.svc.cluster.local:5672"
+  PORT: "5666"
+  EXTERNAL_API_URL: "http://chat-backend:3000"
+  NODE_ENV: "development"

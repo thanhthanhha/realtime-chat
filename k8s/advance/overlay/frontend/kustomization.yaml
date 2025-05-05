@@ -1,0 +1,95 @@
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+bases:
+- ../../frontend-base
+
+namespace: realchat
+namePrefix: frontend-
+
+
+resources:
+  - rollout-frontend.yaml
+  - hpa.yaml
+
+configMapGenerator:
+- name: cm
+  envs: [application.properties]
+
+generatorOptions:
+  disableSuffiHash: true
+
+vars:
+  - name: IMAGE_NAME
+    objref: { kind: ConfigMap, name: frontend-img-env, apiVersion: v1 }
+    fieldref: {fieldpath: data.IMAGE_NAME }
+  - name: IMAGE_TAG
+    objref: { kind: ConfigMap, name: frontend-img-env, apiVersion: v1 }
+    fieldref: {fieldpath: data.IMAGE_TAG }
+  - name: ZBX_IMAGE_NAME
+    objref: { kind: ConfigMap, name: frontend-img-env, apiVersion: v1 }
+    fieldref: {fieldpath: data.ZBX_IMAGE_NAME }
+  - name: ZBX_IMAGE_TAG
+    objref: { kind: ConfigMap, name: frontend-img-env, apiVersion: v1 }
+    fieldref: {fieldpath: data.ZBX_IMAGE_TAG }
+
+patchesJson5902:
+
+  - target:
+      kind: Rollout
+      name: frontend-rollout
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/httpGets/path
+        value: /health
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbeProbe/httpGets/path
+        value: /health
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 150
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbeProbe/initialDelaySeconds
+        value: 150
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "200M"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/quests/memory
+        value: "200M"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "200m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/quests/cpu
+        value: "200m"
+      
+  - target:
+    kind: HorizontalPodAutoscaler
+      name: frontend-hpa
+    patch: |
+      - op: replace
+        path: /spec/scaleTargetRef/name
+        value: frontend-rollout
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+      - op: replace
+        path: /spec/behaviour/scaleDown/stabilizationWindowSeconds
+        value: 1200
+      - op: replace
+        path: /spec/behaviour/scaleUp/stabilizationWindowSeconds
+        value: 300
+
+image:
+  -name: image
+    newName: $(IMAGE_NAME)
+    newTag: $(IMAGE_TAG)
+  -name: zabbix-image
+    newName: $(ZBX_IMAGE_NAME)
+    newTag: $(ZBX_IMAGE_TAG)

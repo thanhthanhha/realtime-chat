@@ -1,0 +1,54 @@
+---
+# PVC for logs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logs-pvc
+spec:
+  accessModes:
+    - ReadWriteMany  # Allows multiple pods to read/write to the volume
+  resources:
+    requests:
+      storage: 10Gi  # Adjust size as needed
+  storageClassName: local-path  # Use your cluster's storage class
+
+---
+# PVC for backend uploads
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-pvc
+spec:
+  accessModes:
+    - ReadWriteMany  # Allows multiple pods to read/write to the volume
+  resources:
+    requests:
+      storage: 5Gi  # Adjust size as needed
+  storageClassName: local-path  # Use your cluster's storage class
+
+
+  ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frontend-pvc
+spec:
+  accessModes:
+    - ReadWriteMany  # Allows multiple pods to read/write to the volume
+  resources:
+    requests:
+      storage: 5Gi  # Adjust size as needed
+  storageClassName: local-path  # Use your cluster's storage class
+
+    ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chat-api-pvc
+spec:
+  accessModes:
+    - ReadWriteMany  # Allows multiple pods to read/write to the volume
+  resources:
+    requests:
+      storage: 5Gi  # Adjust size as needed
+  storageClassName: local-path  # Use your cluster's storage class

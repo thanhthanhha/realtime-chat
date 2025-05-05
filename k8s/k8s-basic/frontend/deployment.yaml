@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: default
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      initContainers:
+      - name: wait-for-chat-api
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup chat-api.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local && wget --spider -T 1 http://chat-api:5666/health; do echo waiting for chat-api; sleep 2; done;']
+      - name: wait-for-redis
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nslookup realchat-redis-master.redis.svc.cluster.local && nc -z realchat-redis-master.redis.svc.cluster.local 6379; do echo waiting for redis; sleep 2; done;']
+      containers:
+      - name: frontend
+        image: frostymeteor2/realchat-frontend-api:v1.1  # You'll need to replace this with your actual image
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: frontend-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      restartPolicy: Always

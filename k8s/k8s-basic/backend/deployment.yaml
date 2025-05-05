@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-backend
+  namespace: default
+  labels:
+    app: chat-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-backend
+  template:
+    metadata:
+      labels:
+        app: chat-backend
+    spec:
+      containers:
+      - name: chat-backend
+        image: frostymeteor2/realchat-backend-api:latest  # Replace with your image
+        ports:
+        - containerPort: 3000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: backend-config
+        - secretRef:
+            name: backend-secrets
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+      - name: zabbix-agent
+        image: zabbix/zabbix-agent:alpine-trunk
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "80m"
+          limits:
+            memory: "100Mi"
+            cpu: "80m"
+        volumeMounts:
+        - name: zabbix-agent-cm
+          mountPath: /etc/zabbix/zabbix_agentd.conf
+          subPath: zabbix_agentd.conf
+      volumes:
+        - name: zabbix-agent-cm
+          configMap:
+            name: zabbix-agent-cm

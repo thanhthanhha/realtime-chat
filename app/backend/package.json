@@ -5,70 +5,23 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon --exec 'ts-node -r tsconfig-paths/register' src/server.ts",
-    "build": "tsc",
-    "test": "jest --detectOpenHandles --forceExit",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:user": "jest user.test.ts",
-    "test:message": "jest message.test.ts",
-    "test:chat": "jest chat.test.ts",
-    "test:friend": "jest friendRequest.test.ts",
-    "test:ci": "jest --ci --collectCoverage --coverageDirectory='coverage'"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "roots": ["<rootDir>/test"],
-    "testMatch": [
-      "**/test/**/*.test.ts"
-    ],
-    "moduleFileExtensions": [
-      "ts",
-      "tsx",
-      "js",
-      "jsx",
-      "json",
-      "node"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
-    },
-    "modulePaths": ["<rootDir>"],
-    "transform": {
-      "^.+\\.tsx?$": [
-        "ts-jest",
-        {
-          "tsconfig": "tsconfig.json"
-        }
-      ]
-    },
-    "coverageDirectory": "coverage",
-    "collectCoverageFrom": [
-      "src/**/*.{ts,tsx}",
-      "!src/**/*.d.ts"
-    ],
-    "coverageThreshold": {
-      "global": {
-        "branches": 80,
-        "functions": 80,
-        "lines": 80,
-        "statements": 80
-      }
-    },
-    "verbose": true
+    "build": "tsc && tsc-alias"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.8",
     "aws-sdk": "^2.1692.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "tsc-alias": "^1.8.11",
     "uuid": "^11.0.4"
   },
   "devDependencies": {
-    "@types/aws-sdk": "^2.7.4",
+    "@types/aws-sdk": "^2.7.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.5",

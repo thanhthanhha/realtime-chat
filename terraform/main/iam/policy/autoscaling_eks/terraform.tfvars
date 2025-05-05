@@ -1,0 +1,27 @@
+policies = {
+    AutoScaling-Node = {
+            policy = <<EOF
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "autoscaling:DescribeAutoScalingGroups",
+                            "autoscaling:DescribeAutoScalingInstances",
+                            "autoscaling:DescribeLaunchConfigurations",
+                            "autoscaling:DescribeTags",
+                            "autoscaling:SetDesiredCapacity",
+                            "autoscaling:TerminateInstanceInAutoScalingGroup",
+                            "ec2:DescribeLaunchTemplateVersions"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+        EOF
+    tags = {
+        Role = "AutoScaling-NodeGroup"
+    }
+    }
+}

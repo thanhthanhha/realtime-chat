@@ -1,0 +1,14 @@
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+
+configuration: 
+  - rollout-transform.yaml
+resources: 
+  - service.yaml
+  - ingress.yaml
+configmapGenerator:
+  - name: img-env
+    envs: [image.properties]
+
+generatorOptions:
+  disableNameSuffixHash: true

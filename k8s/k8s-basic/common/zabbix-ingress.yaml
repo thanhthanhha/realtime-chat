@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zabbix-ingress-custom 
+  namespace: zabbix
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # This tells Nginx to preserve the original URL for redirect purposes
+    #nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /zabbix(/|$)(.*)
+        pathType: ImplementationSpecific 
+        backend:
+          service:
+            name: realchat-zabbix-zabbix-web
+            port:
+              number: 80

@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - DYNAMODB_CHAT_TABLE=chats
+      - DYNAMODB_USER_TABLE=users
+      - DYNAMODB_MESSAGE_TABLE=messages
+      - DYNAMODB_FRIEND_REQUEST_TABLE=friend_requests
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=${NODE_ENV}
+    networks:
+      - chat-network
+
+  # Chat WebSocket API Service
+  chat-api:
+    build:
+      context: ./chat-api
+      dockerfile: Dockerfile
+    container_name: chat-websocket
+    ports:
+      - "5666:5666"
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - PORT=5666
+      - EXTERNAL_API_URL=http://backend:3000
+      - NODE_ENV=${NODE_ENV}
+    networks:
+      - chat-network
+    depends_on:
+      - rabbitmq
+      - backend
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chat-frontend
+    ports:
+      - "8080:8080"
+    environment:
+      # NEXT_PUBLIC can only be exported at build time use .env.buildimage to set these variable
+      - BACKEND_URL=http://backend:3000
+      - WEBSOCKET_SERVER=${WEBSOCKET_SERVER}
+      - NEXTAUTH_SECRET=random
+      - REDIS_CONNECTION_TYPE=local
+      - REDIS_URL=redis://default:Blud1234567@redis:6379
+      - NODE_ENV=${NODE_ENV}
+    networks:
+      - chat-network
+    depends_on:
+      - backend
+      - chat-api
+
+  # Local DynamoDB
+  redis:
+    image: redis:7-alpine
+    container_name: my_redis
+    command: redis-server --requirepass Blud1234567
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      - REDIS_PASSWORD=Blud1234567
+    networks:
+      - chat-network
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: my_rabbitmq
+    ports:
+      - "5672:5672"  # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - chat-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  chat-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  dynamodb-data:
+  redis_data:

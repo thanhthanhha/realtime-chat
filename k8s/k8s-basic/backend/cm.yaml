@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: default
+data:
+  DYNAMODB_CHAT_TABLE: "chats"
+  DYNAMODB_USER_TABLE: "users"
+  DYNAMODB_MESSAGE_TABLE: "messages"
+  DYNAMODB_FRIEND_REQUEST_TABLE: "friend_requests"
+  PORT: "3000"
+  JWT_SECRET: "RANDOM"
+  NODE_ENV: "development"

@@ -15,5 +15,6 @@ router.get('/sent/:userId', friendRequestController.getSentRequests);
 
 // Delete a friend request
 router.delete('/:requestId', friendRequestController.deleteFriendRequest);
+router.put('/:requestId/approve', friendRequestController.approveRequest);
 
 export default router;

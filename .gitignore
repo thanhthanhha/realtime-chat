@@ -15,6 +15,7 @@
 /app/frontend/.next
 /app/frontend/out
 /app/backend/dist
+/app/chat-api/dist
 
 # misc
 .DS_Store
@@ -26,11 +27,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-**/.env*.local
-**/.env
-/app/frontend/.env*
-/app/backend/.env*
 
 # vercel
 **/.vercel

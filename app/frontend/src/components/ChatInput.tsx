@@ -1,35 +1,36 @@
 'use client'
 
-import axios from 'axios'
 import { FC, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import TextareaAutosize from 'react-textarea-autosize'
 import Button from './ui/Button'
+import { useWebSocketMessages } from './WebSocketMessageWrapper'
 
 interface ChatInputProps {
-  chatPartner: User
-  chatId: string
+  chatPartners: User[];
 }
 
-const ChatInput: FC<ChatInputProps> = ({ chatPartner, chatId }) => {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [input, setInput] = useState<string>('')
+const ChatInput: FC<ChatInputProps> = ({ chatPartners }) => {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [input, setInput] = useState<string>('');
+  const { sendMessage, isConnected } = useWebSocketMessages();
 
-  const sendMessage = async () => {
-    if(!input) return
-    setIsLoading(true)
-
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+    
+    setIsLoading(true);
     try {
-      await axios.post('/api/message/send', { text: input, chatId })
-      setInput('')
-      textareaRef.current?.focus()
-    } catch {
-      toast.error('Something went wrong. Please try again later.')
+      sendMessage(input.trim());
+      setInput('');
+      textareaRef.current?.focus();
+    } catch (error) {
+      toast.error('Something went wrong. Please try again later.');
+      console.error('Error sending message:', error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className='border-t border-gray-200 px-4 pt-4 mb-2 sm:mb-0'>
@@ -38,15 +39,16 @@ const ChatInput: FC<ChatInputProps> = ({ chatPartner, chatId }) => {
           ref={textareaRef}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              sendMessage()
+              e.preventDefault();
+              handleSendMessage();
             }
           }}
           rows={1}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={`Message ${chatPartner.name}`}
+          placeholder={`Message ${chatPartners.length > 1 ? "Group" : chatPartners[0].name}`}
           className='block w-full resize-none border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:py-1.5 sm:text-sm sm:leading-6'
+          disabled={!isConnected}
         />
 
         <div
@@ -60,14 +62,25 @@ const ChatInput: FC<ChatInputProps> = ({ chatPartner, chatId }) => {
 
         <div className='absolute right-0 bottom-0 flex justify-between py-2 pl-3 pr-2'>
           <div className='flex-shrin-0'>
-            <Button isLoading={isLoading} onClick={sendMessage} type='submit'>
+            <Button 
+              isLoading={isLoading} 
+              onClick={handleSendMessage} 
+              type='submit'
+              disabled={!isConnected}
+            >
               Post
             </Button>
           </div>
         </div>
+        
+        {!isConnected && (
+          <div className="absolute bottom-0 left-0 w-full bg-red-100 text-red-800 text-xs px-2 py-1">
+            Reconnecting to chat...
+          </div>
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ChatInput
+export default ChatInput;

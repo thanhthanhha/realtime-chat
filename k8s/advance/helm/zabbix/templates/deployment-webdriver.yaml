@@ -1,0 +1,36 @@
+{{- if and .Values.zabbixBrowserMonitoring.enabled .Values.zabbixBrowserMonitoring.webdriver.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "zabbix.fullname" . }}-{{ .Values.zabbixBrowserMonitoring.webdriver.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "zabbix.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webdriver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "zabbix.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: webdriver
+  template:
+    metadata:
+      labels:
+        {{- include "zabbix.labels" . | nindent 8 }}
+        app.kubernetes.io/component: webdriver
+    spec:
+      {{- with .Values.zabbixBrowserMonitoring.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.zabbixBrowserMonitoring.webdriver.name }}
+        imagePullPolicy: {{ .Values.zabbixBrowserMonitoring.webdriver.image.pullPolicy }}
+        image: {{ .Values.zabbixBrowserMonitoring.webdriver.image.repository }}:{{ .Values.zabbixBrowserMonitoring.webdriver.image.tag }}
+        ports:
+        - containerPort: {{ .Values.zabbixBrowserMonitoring.webdriver.port }}
+      imagePullSecrets:
+      {{- range .Values.zabbixBrowserMonitoring.webdriver.image.pullSecrets }}
+        - name: {{ . | quote }}
+      {{- end }}
+{{- end }}

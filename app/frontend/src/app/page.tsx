@@ -1,8 +1,8 @@
-"use client"
 
-import Button from '@/components/ui/Button'
-import { signOut } from 'next-auth/react'
+'use client'
+//import Button from '@/components/ui/Button'
+import { logout } from '@/lib/actions';
 
 export default function Home() {
-  return <button onClick={() => signOut()}>Sign out</button>
+  return <button onClick={() => logout()}>Sign out</button>
 }

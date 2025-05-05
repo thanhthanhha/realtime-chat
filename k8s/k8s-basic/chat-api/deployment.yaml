@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-api
+  namespace: default
+  labels:
+    app: chat-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-api
+  template:
+    metadata:
+      labels:
+        app: chat-api
+    spec:
+      initContainers:
+        - name: wait-for-backend
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup chat-backend.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local && wget --spider -T 1 http://chat-backend:3000/health; do echo waiting for backend; sleep 2; done;']
+        - name: wait-for-rabbitmq
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup realchat-rabbitmq.rabbitmq.svc.cluster.local && nc -z realchat-rabbitmq.rabbitmq.svc.cluster.local 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      containers:
+        - name: chat-api
+          image: frostymeteor2/realchat-chatws-api:latest  # Replace with your actual image
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5666
+          envFrom:
+            - configMapRef:
+                name: chat-api-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health  # Adjust this based on your app's health endpoint
+              port: 5666
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health  # Adjust this based on your app's health endpoint
+              port: 5666
+            initialDelaySeconds: 10
+            periodSeconds: 5

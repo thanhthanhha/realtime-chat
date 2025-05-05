@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zabbix-agent-cm
+data:
+  zabbix_agentd.conf: |
+    # Base Zabbix configuration
+    Server=realchat-zabbix-zabbix-server.zabbix.svc.cluster.local
+    ServerActive=realchat-zabbix-zabbix-server.zabbix.svc.cluster.local:10051
+    HostnameItem=system.run["echo pod-`/bin/hostname`"]
+    HostMetadataItem=system.run["echo `/bin/hostname`"]
+    HostInterfaceItem=system.run["echo `/bin/hostname`"]
+    LogType=console
