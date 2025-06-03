@@ -1,4 +1,4 @@
-apiVersion: autoscaling/v2beta2
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: hpa
@@ -8,7 +8,7 @@ spec:
     kind: Rollout
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 200
       policies:
       - type: Percent
         value: 10
@@ -18,7 +18,7 @@ spec:
         periodSeconds: 60
       selectPolicy: Min
     scaleUp:
-      stabilizationWindowSeconds: 300
+      stabilizationWindowSeconds: 200
       policies:
       - type: Percent
         value: 100

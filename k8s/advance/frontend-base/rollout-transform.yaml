@@ -6,6 +6,10 @@ nameReference:
     kind: Ingress
   - path: spec/rules/http/paths/backend/service/name
     kind: Ingress
+  - path: spec/strategy/blueGreen/activeService
+    kind: Rollout
+  - path: spec/strategy/blueGreen/previewService
+    kind: Rollout
 - kind: ConfigMap
   version: v1
   fieldSpecs:
@@ -15,10 +19,7 @@ nameReference:
     kind: Rollout
   - path: spec/template/spec/volumes/configMap/name
     kind: Rollout
-- kind: Secret
-  version: v1
-  fieldSpecs:
-  - path: spec/template/spec/containers/envFrom/secretRef/name
+  - path: spec/template/spec/initContainers/env/valueFrom/configMapKeyRef/name
     kind: Rollout
 
 

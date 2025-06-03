@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: postsync-frontend-
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      serviceAccountName: argocd-hook-executor  # Needs RBAC permissions
+      containers:
+      - name: config-updater
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Get hash from AppToCustomize ConfigMap
+          HASH_GREEN=$(kubectl get rollout frontend-rollout -o jsonpath='{.status.currentPodHash}' -n realchat)
+
+          HASH_SERVICE=$(kubectl get rollout frontend-rollout -o jsonpath='{.status.selector}' -n realchat | grep -o 'rollouts-pod-template-hash=[^,]*' | cut -d'=' -f2)
+
+          RS_GREEN=$(kubectl get rs -l rollouts-pod-template-hash=$HASH_GREEN -n realchat --no-headers | awk '{print $1}')
+
+          RS_SERVICE=$(kubectl get rs -l rollouts-pod-template-hash=$HASH_SERVICE -n realchat --no-headers | awk '{print $1}')
+
+          # First check if the path exists and get the configMapRef name
+          current_name_green=$(kubectl get rs $RS_GREEN -n realchat -o jsonpath='{.spec.template.spec.containers[?(@.name=="main")].envFrom[?(@.configMapRef.name=="frontend-cm")].configMapRef.name}')
+
+          # If it exists, patch it
+          if [ "$current_name_green" = "frontend-cm" ]; then
+            kubectl patch rs $RS_GREEN -n realchat --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/envFrom/0/configMapRef/name", "value": "frontend-cm-green"}]'
+            kubectl delete pods -l rollouts-pod-template-hash=$HASH_GREEN
+          fi
+
+
+          current_name_service=$(kubectl get rs $RS_SERVICE -n realchat -o jsonpath='{.spec.template.spec.containers[?(@.name=="main")].envFrom[?(@.configMapRef.name=="frontend-cm")].configMapRef.name}')
+          
+          # If it exists, patch it
+          if [ "$current_name_service" = "frontend-cm-green" ]; then
+            kubectl patch rs $RS_SERVICE -n realchat --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/envFrom/0/configMapRef/name", "value": "frontend-cm"}]'
+            kubectl delete pods -l rollouts-pod-template-hash=$HASH_SERVICE
+          fi
+
+          # Restart pods with the specific label
+          
+      restartPolicy: Never
+  backoffLimit: 2

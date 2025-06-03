@@ -1,12 +1,12 @@
 kind: Kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 
-configuration: 
+configurations: 
   - rollout-transform.yaml
 resources: 
   - service.yaml
   - ingress.yaml
-configmapGenerator:
+configMapGenerator:
   - name: img-env
     envs: [image.properties]
 

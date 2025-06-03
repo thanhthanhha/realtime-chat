@@ -9,6 +9,9 @@ export function toPusherKey(key: string) {
   return key.replace(/:/g, '__')
 }
 
+export const generateShortId = () => {
+  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+};
 export function chatHrefConstructor(id1: string, id2: string) {
   const sortedIds = [id1, id2].sort()
   return `${sortedIds[0]}--${sortedIds[1]}`
@@ -78,3 +81,5 @@ export function trimWhitespace(input: string | null | undefined, options: {
 
   return result;
 }
+
+

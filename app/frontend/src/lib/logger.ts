@@ -11,6 +11,7 @@ const levels = {
 
 // Determine if we're in development mode
 const isDevelopment = process.env.NODE_ENV !== 'production';
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Helper function to format timestamp
 const getTimestamp = () => {
@@ -28,6 +29,7 @@ const formatMessage = (level: string, module: string | undefined, message: strin
 
 // Safe console logging function that works in all environments
 const safeConsoleLog = (level: string, formattedMessage: string) => {
+  if (isProduction) return;
   // Check if we're in a browser environment
   if (typeof window !== 'undefined') {
     // Browser environment - use console.log for all levels
@@ -76,7 +78,7 @@ const logger = {
   },
 
   debug: (module: string | undefined, message: string | object, metadata?: any) => {
-    if (isDevelopment) {
+    if (process.env.LOG_LEVEL == 'DEBUG') {
       const msg = typeof message === 'string' ? message : JSON.stringify(message);
       safeConsoleLog('debug', formatMessage('debug', module, msg, metadata));
     }

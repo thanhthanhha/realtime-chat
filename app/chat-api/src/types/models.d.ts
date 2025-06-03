@@ -29,3 +29,10 @@ export interface ExternalAPIMessage {
     timestamp: Date;
   }
 
+// Retry configuration
+interface RetryConfig {
+  maxRetries: number;
+  retryDelay: number; // in milliseconds
+  backoffMultiplier: number;
+}
+

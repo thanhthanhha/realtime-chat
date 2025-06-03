@@ -13,7 +13,11 @@
   "dependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.8",
+    "@types/express-ws": "^3.0.5",
+    "tsconfig-paths": "^4.2.0",
+    "@types/ws": "^8.5.13",
     "amqplib": "^0.10.5",
+    "@types/amqplib": "0.10.6",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -24,9 +28,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/amqplib": "^0.10.6",
-    "@types/dotenv": "^8.2.3",
-    "@types/express-ws": "^3.0.5",
-    "@types/ws": "^8.5.13"
+    "tsc-alias": "^1.8.8",
+    "tsconfig-paths": "^4.2.0"
   }
 }

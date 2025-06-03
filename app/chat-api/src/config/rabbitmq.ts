@@ -2,18 +2,21 @@ import amqp, { Channel, Connection } from 'amqplib';
 import { ChatMessage } from '../types/models';
 import Logger from '../utils/logger';
 
+const MODULE_NAME = 'RabbitMQConfig';
+
 // Connection and channel variables
-let channel: Channel;
-let connection: Connection;
+let channel: Channel | null = null;
+let connection: Connection | null = null;
+
+// State management
+let isConnecting = false;
+let isShuttingDown = false;
+let reconnectTimeout: NodeJS.Timeout | null = null;
 
 // Retry configuration
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000; // 30 seconds
-
-// Heartbeat monitoring
-let heartbeatTimer: NodeJS.Timeout | null = null;
-const HEARTBEAT_INTERVAL = 60000; // 60 seconds - must match the heartbeat value in the connection options
 
 /**
  * Calculate exponential backoff delay
@@ -26,7 +29,7 @@ const calculateBackoff = (retryCount: number): number => {
     MAX_RETRY_DELAY
   );
   
-  // Add some jitter to prevent all clients from retrying simultaneously
+  // Add jitter to prevent thundering herd
   return delay + Math.random() * 1000;
 };
 
@@ -34,127 +37,247 @@ const calculateBackoff = (retryCount: number): number => {
  * Setup RabbitMQ exchanges and queues
  */
 const setupExchangesAndQueues = async (): Promise<void> => {
+  if (!channel) {
+    throw new Error('Channel not available for setup');
+  }
+
   try {
     // Main exchange for chat messages
     await channel.assertExchange('chat_exchange', 'direct', { durable: true });
+    Logger.debug(MODULE_NAME, 'Chat exchange asserted');
     
-    // Main exchange for chat notification
+    // Main exchange for notifications
     await channel.assertExchange('notification_exchange', 'direct', { durable: true });
+    Logger.debug(MODULE_NAME, 'Notification exchange asserted');
     
     // Dead Letter Exchange (DLX) setup
     await channel.assertExchange('dlx_exchange', 'direct', { durable: true });
+    Logger.debug(MODULE_NAME, 'dlx_exchange exchange asserted');
     await channel.assertQueue('dlx_queue', { durable: true });
+    Logger.debug(MODULE_NAME, 'dlx_queue queue asserted');
     await channel.bindQueue('dlx_queue', 'dlx_exchange', 'dlx_routing_key');
+    Logger.debug(MODULE_NAME, 'DLX setup completed');
+
+    // Notification Dead Letter Exchange (DLX) setup
+    await channel.assertExchange('dlx_notif_exchange', 'direct', { durable: true });
+    Logger.debug(MODULE_NAME, 'dlx_notif_exchange exchange asserted');
+    await channel.assertQueue('dlx_notif_queue', { durable: true });
+    Logger.debug(MODULE_NAME, 'dlx_notif_queue queue asserted');
+    await channel.bindQueue('dlx_notif_queue', 'dlx_notif_exchange', 'dlx_notif_routing_key');
+    Logger.debug(MODULE_NAME, 'DLX for notification setup completed');
     
-    Logger.info('RabbitMQ', 'Exchanges and queues initialized successfully');
+    Logger.info(MODULE_NAME, 'All exchanges and queues initialized successfully');
   } catch (error) {
-    Logger.error('RabbitMQ', 'Failed to initialize exchanges and queues', error as Error);
+    Logger.error(MODULE_NAME, 'Failed to setup exchanges and queues', error as Error);
     throw error;
   }
+};
+
+/**
+ * Setup connection event handlers
+ */
+const setupConnectionHandlers = () => {
+  if (!connection) return;
+
+  // Remove any existing listeners to prevent memory leaks
+  connection.removeAllListeners('error');
+  connection.removeAllListeners('close');
+  connection.removeAllListeners('blocked');
+  connection.removeAllListeners('unblocked');
+
+  connection.on('error', (err) => {
+    Logger.error(MODULE_NAME, 'Connection error occurred', err);
+    handleConnectionFailure();
+  });
+  
+  connection.on('close', () => {
+    Logger.warn(MODULE_NAME, 'Connection closed unexpectedly');
+    handleConnectionFailure();
+  });
+
+  connection.on('blocked', (reason) => {
+    Logger.warn(MODULE_NAME, `Connection blocked: ${reason}`);
+  });
+
+  connection.on('unblocked', () => {
+    Logger.info(MODULE_NAME, 'Connection unblocked');
+  });
+};
+
+/**
+ * Setup channel event handlers
+ */
+const setupChannelHandlers = () => {
+  if (!channel) return;
+
+  // Remove any existing listeners
+  channel.removeAllListeners('error');
+  channel.removeAllListeners('close');
+  channel.removeAllListeners('return');
+
+  channel.on('error', (err) => {
+    Logger.error(MODULE_NAME, 'Channel error occurred', err);
+    handleChannelFailure();
+  });
+  
+  channel.on('close', () => {
+    Logger.warn(MODULE_NAME, 'Channel closed unexpectedly');
+    handleChannelFailure();
+  });
+
+  channel.on('return', (msg) => {
+    Logger.warn(MODULE_NAME, `Message returned: ${msg.content.toString()}`);
+  });
+};
+
+/**
+ * Handle connection failure
+ */
+const handleConnectionFailure = () => {
+  if (isShuttingDown) {
+    Logger.debug(MODULE_NAME, 'Ignoring connection failure during shutdown');
+    return;
+  }
+
+  // Clear connection and channel references
+  connection = null;
+  channel = null;
+  
+  // Attempt reconnection
+  scheduleReconnect();
+};
+
+/**
+ * Handle channel failure (try to recreate channel without full reconnection)
+ */
+const handleChannelFailure = () => {
+  if (isShuttingDown) {
+    Logger.debug(MODULE_NAME, 'Ignoring channel failure during shutdown');
+    return;
+  }
+
+  channel = null;
+  
+  // Try to recreate channel if connection is still alive
+  if (connection) {
+    Logger.info(MODULE_NAME, 'Attempting to recreate channel...');
+    createChannel();
+  } else {
+    // Connection is also dead, do full reconnection
+    handleConnectionFailure();
+  }
+};
+
+/**
+ * Create a new channel
+ */
+const createChannel = async (): Promise<void> => {
+  if (!connection) {
+    throw new Error('Cannot create channel: connection not available');
+  }
+
+  try {
+    channel = await connection.createChannel();
+    setupChannelHandlers();
+    await setupExchangesAndQueues();
+    Logger.info(MODULE_NAME, 'Channel recreated successfully');
+  } catch (error) {
+    Logger.error(MODULE_NAME, 'Failed to create channel', error as Error);
+    throw error;
+  }
+};
+
+/**
+ * Schedule reconnection attempt
+ */
+const scheduleReconnect = () => {
+  if (reconnectTimeout) return; // Only check for pending reconnects
+  
+  const delay = calculateBackoff(0);
+  reconnectTimeout = setTimeout(async () => {
+    reconnectTimeout = null;
+    try {
+      await connectRabbitMQ();
+    } catch (error) {
+      Logger.error(MODULE_NAME, 'Reconnection failed', error as Error);
+    }
+  }, delay);
 };
 
 /**
  * Connect to RabbitMQ with retry mechanism
  */
 export const connectRabbitMQ = async (): Promise<void> => {
+  if (isConnecting) {
+    Logger.debug(MODULE_NAME, 'Connection attempt already in progress');
+    return;
+  }
+
+  if (isShuttingDown) {
+    Logger.debug(MODULE_NAME, 'Cannot connect during shutdown');
+    return;
+  }
+
+  isConnecting = true;
   let retryCount = 0;
   let connected = false;
 
-  while (!connected && retryCount < MAX_RETRIES) {
+  // Clear any pending reconnect timeout
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+
+  while (!connected && retryCount < MAX_RETRIES && !isShuttingDown) {
     try {
-      // Connection options with heartbeat
+      Logger.info(MODULE_NAME, `Connection attempt ${retryCount + 1}/${MAX_RETRIES} connecting to ${process.env.RABBITMQ_URL}`);
+
+      // Connection options with heartbeat - let amqplib handle heartbeat checking
       const options = {
-        heartbeat: 60, // 60 seconds heartbeat
+        heartbeat: 60, // 60 seconds heartbeat - amqplib handles this automatically
         timeout: 30000, // 30 seconds socket connection timeout
         clientProperties: {
-          connection_name: `chat_service_${process.env.NODE_ENV || 'development'}`
+          connection_name: `chat_service_${process.env.NODE_ENV || 'development'}_${Date.now()}`
         }
       };
 
-      // Attempt to establish connection with heartbeat
+
+      // Establish connection
       connection = await amqp.connect(process.env.RABBITMQ_URL!, options);
-      
-      // Set up reconnection logic
-      connection.on('error', (err) => {
-        Logger.error('RabbitMQ', 'Connection error', err);
-        attemptReconnect();
-      });
-      
-      connection.on('close', () => {
-        Logger.warn('RabbitMQ', 'Connection closed unexpectedly');
-        attemptReconnect();
-      });
+      setupConnectionHandlers();
       
       // Create channel
-      channel = await connection.createChannel();
-      
-      // Set up channel error handling
-      channel.on('error', (err) => {
-        Logger.error('RabbitMQ', 'Channel error', err);
-      });
-      
-      channel.on('close', () => {
-        Logger.warn('RabbitMQ', 'Channel closed');
-      });
-      
-      // Initialize exchanges and queues
-      await setupExchangesAndQueues();
+      await createChannel();
       
       connected = true;
-      Logger.info('RabbitMQ', `Successfully connected with heartbeat interval of 60s`);
+      Logger.info(MODULE_NAME, 'Successfully connected to RabbitMQ');
       
-      // Setup additional heartbeat monitoring as a safeguard
-      setupHeartbeatMonitoring();
     } catch (error) {
       retryCount++;
       const backoffDelay = calculateBackoff(retryCount);
       
       Logger.warn(
-        'RabbitMQ', 
-        `Connection attempt ${retryCount}/${MAX_RETRIES} failed. Retrying in ${Math.round(backoffDelay/1000)} seconds.`
+        MODULE_NAME, 
+        `Connection attempt ${retryCount}/${MAX_RETRIES} failed: ${(error as Error).message}`
       );
       
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      if (retryCount < MAX_RETRIES && !isShuttingDown) {
+        Logger.info(MODULE_NAME, `Retrying in ${Math.round(backoffDelay/1000)} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      }
     }
   }
 
-  if (!connected) {
+  isConnecting = false;
+
+  if (!connected && !isShuttingDown) {
     const error = new Error(`Failed to connect to RabbitMQ after ${MAX_RETRIES} attempts`);
-    Logger.error('RabbitMQ', error.message);
+    Logger.error(MODULE_NAME, error.message);
+    
+    // Schedule another reconnection attempt
+    scheduleReconnect();
     throw error;
   }
-};
-
-/**
- * Attempt to reconnect to RabbitMQ
- */
-const attemptReconnect = () => {
-  // Check if connection exists and is still open
-  let isConnecting = false;
-  
-  try {
-    // If we can create a channel, connection is still good (this won't actually create one)
-    isConnecting = connection && connection.createChannel !== undefined;
-  } catch (e) {
-    isConnecting = false;
-  }
-  
-  // Only attempt to reconnect if we're not already trying
-  if (isConnecting) {
-    return;
-  }
-  
-  Logger.info('RabbitMQ', 'Attempting to reconnect...');
-  
-  // Schedule reconnection attempt
-  setTimeout(async () => {
-    try {
-      await connectRabbitMQ();
-    } catch (error) {
-      Logger.error('RabbitMQ', 'Reconnection failed', error as Error);
-    }
-  }, INITIAL_RETRY_DELAY);
 };
 
 /**
@@ -162,67 +285,134 @@ const attemptReconnect = () => {
  */
 export const getChannel = (): Channel => {
   if (!channel) {
-    throw new Error('RabbitMQ channel not available. Ensure connectRabbitMQ() was called.');
+    throw new Error('RabbitMQ channel not available. Connection may be down.');
   }
   return channel;
 };
 
 /**
- * Check if connection is healthy
+ * Get the current RabbitMQ connection
+ */
+export const getConnection = (): Connection => {
+  if (!connection) {
+    throw new Error('RabbitMQ connection not available.');
+  }
+  return connection;
+};
+
+/**
+ * Check if connection and channel are healthy
  */
 export const checkConnection = (): boolean => {
   try {
-    return !!connection && !!channel;
+    return !!(connection && channel);
   } catch (error) {
     return false;
   }
 };
 
 /**
- * Setup heartbeat monitoring
+ * Check if currently connecting
  */
-const setupHeartbeatMonitoring = () => {
-  // Clear any existing timer
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-  }
+export const isCurrentlyConnecting = (): boolean => {
+  return isConnecting;
+};
+
+/**
+ * Get connection status
+ */
+export const getConnectionStatus = () => {
+  return {
+    connected: checkConnection(),
+    connecting: isConnecting,
+    shuttingDown: isShuttingDown,
+    hasConnection: !!connection,
+    hasChannel: !!channel
+  };
+};
+
+/**
+ * Force reconnection (useful for testing or manual recovery)
+ */
+export const forceReconnect = async (): Promise<void> => {
+  Logger.info(MODULE_NAME, 'Forcing reconnection...');
   
-  // Set up heartbeat monitoring
-  heartbeatTimer = setInterval(() => {
-    if (!checkConnection()) {
-      Logger.warn('RabbitMQ', 'Heartbeat check failed, connection appears to be down');
-      // Clear the timer to avoid multiple reconnection attempts
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-      attemptReconnect();
-    } else {
-      Logger.debug('RabbitMQ', 'Heartbeat check successful');
-    }
-  }, HEARTBEAT_INTERVAL);
+  // Close existing connections
+  await closeRabbitMQ();
+  
+  // Wait a moment before reconnecting
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Reconnect
+  await connectRabbitMQ();
 };
 
 /**
  * Gracefully close RabbitMQ connection
  */
 export const closeRabbitMQ = async (): Promise<void> => {
+  isShuttingDown = true;
+  
+  Logger.info(MODULE_NAME, 'Closing RabbitMQ connection...');
+  
   try {
-    // Stop heartbeat monitoring
-    if (heartbeatTimer) {
-      clearInterval(heartbeatTimer);
-      heartbeatTimer = null;
+    // Clear reconnect timeout
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
     }
     
+    // Close channel first
     if (channel) {
       await channel.close();
+      Logger.debug(MODULE_NAME, 'Channel closed');
     }
+    
+    // Close connection
     if (connection) {
       await connection.close();
+      Logger.debug(MODULE_NAME, 'Connection closed');
     }
-    Logger.info('RabbitMQ', 'Connection closed gracefully');
+    
+    // Reset state
+    channel = null;
+    connection = null;
+    
+    Logger.info(MODULE_NAME, 'RabbitMQ connection closed gracefully');
   } catch (error) {
-    Logger.error('RabbitMQ', 'Error while closing connection', error as Error);
-    throw error;
+    Logger.error(MODULE_NAME, 'Error while closing connection', error as Error);
+  } finally {
+    isShuttingDown = false;
   }
 };
+
+// Handle process termination gracefully
+const gracefulShutdown = async (signal: string) => {
+  Logger.info(MODULE_NAME, `Received ${signal}, initiating graceful shutdown...`);
+  
+  try {
+    await closeRabbitMQ();
+    Logger.info(MODULE_NAME, 'RabbitMQ connection closed successfully');
+    process.exit(0);
+  } catch (error) {
+    Logger.error(MODULE_NAME, 'Error during graceful shutdown', error as Error);
+    process.exit(1);
+  }
+};
+
+// Handle different termination signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));   // Ctrl+C
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM')); // Termination request
+process.on('SIGQUIT', () => gracefulShutdown('SIGQUIT')); // Quit from keyboard
+
+// Handle uncaught exceptions and rejections
+process.on('uncaughtException', async (error) => {
+  Logger.error(MODULE_NAME, 'Uncaught exception occurred  \n retry connection', error);
+  scheduleReconnect();
+});
+
+process.on('unhandledRejection', async (reason, promise) => {
+  Logger.error(MODULE_NAME, `Unhandled rejection at: ${promise}, reason: ${reason} \n retry connection`);
+  scheduleReconnect();
+});
+

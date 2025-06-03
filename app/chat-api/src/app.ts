@@ -1,7 +1,7 @@
 import express from 'express';
 import expressWs from 'express-ws';
 import { connectRabbitMQ } from './config/rabbitmq';
-import { setupDlxConsumer } from './services/rabbitmq.service'
+import { setupDlxConsumer, setupNotificationDlxConsumer } from './services/rabbitmq.service'
 import chatRouter, {mountRouter} from './routes/chat.routes';
 import dotenv from 'dotenv';
 
@@ -16,6 +16,7 @@ connectRabbitMQ()
   .then(() => {
     console.log('RabbitMQ connected');
     setupDlxConsumer(); // Initialize DLX consumer
+    setupNotificationDlxConsumer();
   })
   .catch((err) => console.error('Connection failed:', err));
 

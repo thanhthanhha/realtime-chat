@@ -11,27 +11,29 @@ spec:
   replicas: 1 # kustomize
   selector:
     matchLabels:
-      app: backend
+      app: chatbackend
   template:
     metadata:
       labels:
-        app: backend
+        app: chatbackend
     spec:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnspecified: DoNotSchedule
-          labelSelector:
-            app: backend
+      # topologySpreadConstraints:
+      #   - maxSkew: 1
+      #     topologyKey: topology.kubernetes.io/zone
+      #     whenUnsatisfiable: DoNotSchedule
+      #     labelSelector:
+      #       app: chatbackend
+      imagePullSecrets:
+        - name: regcred
       containers:
       - name: main
-        image: image          #kustomize
+        image: $(IMAGE_NAME)          #kustomize
         imagePullPolicy: Always
         resources:
           requests:
             memory: ""
             cpu: ""
-          limites:
+          limits:
             memory: ""
             cpu: ""
         ports:
@@ -39,7 +41,7 @@ spec:
           containerPort: 3000
           protocol: TCP
         readinessProbe:       #kustomize
-          httpGets:
+          httpGet:
             path: /
             port: 3000
           initialDelaySeconds: 120
@@ -47,8 +49,8 @@ spec:
           timeoutSeconds: 60
           successThreshold: 1
           failureThreshold: 1
-        livenessProbeProbe:      #kustomize
-          httpGets:
+        livenessProbe:      #kustomize
+          httpGet:
             path: /
             port: 3000
           initialDelaySeconds: 120
@@ -82,7 +84,7 @@ spec:
         #   mountPath: /app/uploads
       
       - name: zabbix-agentd
-        image: zabbix-image
+        image: $(ZBX_IMAGE_NAME)
         imagePullPolicy: Always
         resources:
           requests:
@@ -91,10 +93,9 @@ spec:
           limites:
             memory: "100Mi"
             cpu: "80m"
-          volumeMounts:
-          - name: zabbix-agent-cm
-            mountPath: /etc/zabbix/zabbix_agentd.conf
-            subPath: zabbix_agentd.conf
+        volumeMounts:
+        - name: zabbix-agent-cm
+          mountPath: /etc/zabbix/
 
       terminationGracePeriodSeconds: 1000
       volumes:

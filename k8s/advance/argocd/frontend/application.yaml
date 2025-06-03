@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: realchat-frontend
+  namespace: argocd
+  labels:
+    app: realchat-frontend
+    component: frontend
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/finalizer
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:thanhthanhha/chatreal.git
+    targetRevision: main
+    path: k8s/advance/overlay/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: realchat
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      managedFieldsManagers:
+        - argo-rollouts-controller
+    - group: apps
+      kind: ReplicaSet
+      jqPathExpressions:
+        - .spec.replicas
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jqPathExpressions:
+        - .spec.targetRef
+        - .status
+  info:
+    - name: "Repository"
+      value: "git@github.com:thanhthanhha/chatreal.git"
+    - name: "Path"
+      value: "k8s/advance/overlay/frontend"
+    - name: "Namespace"
+      value: "realchat"

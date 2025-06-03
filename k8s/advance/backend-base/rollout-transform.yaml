@@ -8,13 +8,18 @@ nameReference:
     kind: Rollout
   - path: spec/template/spec/volumes/configMap/name
     kind: Rollout
-  - path: spec/template/spec/containers/env/name/valueFrom/configMapKeyRef/name
 - kind: Secret
   version: v1
   fieldSpecs:
   - path: spec/template/spec/containers/envFrom/secretRef/name
     kind: Rollout
-
+- kind: Service
+  version: v1
+  fieldSpecs:
+  - path: spec/strategy/blueGreen/activeService
+    kind: Rollout
+  - path: spec/strategy/blueGreen/previewService
+    kind: Rollout
 
 commonLabels:
 - path: metadata/labels

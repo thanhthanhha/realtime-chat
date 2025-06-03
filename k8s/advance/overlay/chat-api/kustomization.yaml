@@ -1,80 +1,88 @@
 kind: Kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
-bases:
+
+resources:
 - ../../chat-api-base
+- rollout-chat-api.yaml
+- zabbix-agent-cm.yaml
+- hpa.yaml
+- postsync.yaml
+
 
 namespace: realchat
 namePrefix: chat-api-
 
-
-resources:
-  - rollout-chat-api.yaml
-  - hpa.yaml
-
 configMapGenerator:
 - name: cm
   envs: [application.properties]
+- name: cm-green
+  envs: [application.green.properties]
 
 generatorOptions:
-  disableSuffiHash: true
+  disableNameSuffixHash: true
 
-vars:
-  - name: IMAGE_NAME
-    objref: { kind: ConfigMap, name: chat-api-img-env, apiVersion: v1 }
-    fieldref: {fieldpath: data.IMAGE_NAME }
-  - name: IMAGE_TAG
-    objref: { kind: ConfigMap, name: chat-api-img-env, apiVersion: v1 }
-    fieldref: {fieldpath: data.IMAGE_TAG }
-  - name: ZBX_IMAGE_NAME
-    objref: { kind: ConfigMap, name: chat-api-img-env, apiVersion: v1 }
-    fieldref: {fieldpath: data.ZBX_IMAGE_NAME }
-  - name: ZBX_IMAGE_TAG
-    objref: { kind: ConfigMap, name: chat-api-img-env, apiVersion: v1 }
-    fieldref: {fieldpath: data.ZBX_IMAGE_TAG }
-  - name: RABBITMQ_NS
-    objref: { kind: ConfigMap, name: chat-api-cm, apiVersion: v1 }
-    fieldref: {fieldpath: data.RABBITMQ_NS }
-  - name: EXTERNAL_API_URL
-    objref: { kind: ConfigMap, name: chat-api-cm, apiVersion: v1 }
-    fieldref: {fieldpath: data.EXTERNAL_API_URL }
+replacements:
+  - source:
+      kind: ConfigMap
+      name: chat-api-img-env
+      fieldPath: data.IMAGE_NAME
+    targets:
+    - select:
+        kind: Rollout
+      fieldPaths:
+      - spec.template.spec.containers.[name=main].image
+      options:
+        delimiter: ':'
+        index: 0
+  - source:
+      kind: ConfigMap
+      name: chat-api-img-env
+      fieldPath: data.ZBX_IMAGE_NAME
+    targets:
+    - select:
+        kind: Rollout
+      fieldPaths:
+      - spec.template.spec.containers.[name=zabbix-agentd].image
+      options:
+        delimiter: ':'
+        index: 0
 
-patchesJson5902:
-
+patches:
   - target:
       kind: Rollout
-      name: chat-api-rollout
+      name: rollout
     patch: |
       - op: replace
         path: /spec/replicas
         value: 2
       - op: replace
-        path: /spec/template/spec/containers/0/readinessProbe/httpGets/path
+        path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
         value: /health
       - op: replace
-        path: /spec/template/spec/containers/0/livenessProbeProbe/httpGets/path
+        path: /spec/template/spec/containers/0/livenessProbe/httpGet/path
         value: /health
       - op: replace
         path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
-        value: 150
+        value: 121
       - op: replace
-        path: /spec/template/spec/containers/0/livenessProbeProbe/initialDelaySeconds
-        value: 150
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 120
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
-        value: "200M"
+        value: "128Mi"
       - op: replace
-        path: /spec/template/spec/containers/0/resources/quests/memory
-        value: "200M"
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "64Mi"
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: "200m"
+        value: "100m"
       - op: replace
-        path: /spec/template/spec/containers/0/resources/quests/cpu
-        value: "200m"
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "50m"
 
   - target:
-    kind: HorizontalPodAutoscaler
-      name: chat-api-hpa
+      kind: HorizontalPodAutoscaler
+      name: hpa
     patch: |
       - op: replace
         path: /spec/scaleTargetRef/name
@@ -86,19 +94,16 @@ patchesJson5902:
         path: /spec/maxReplicas
         value: 4
       - op: replace
-        path: /spec/behaviour/scaleDown/stabilizationWindowSeconds
+        path: /spec/behavior/scaleDown/stabilizationWindowSeconds
         value: 1200
       - op: replace
-        path: /spec/behaviour/scaleUp/stabilizationWindowSeconds
+        path: /spec/behavior/scaleUp/stabilizationWindowSeconds
         value: 300
 
-image:
-  -name: image
-    newName: $(IMAGE_NAME)
-    newTag: $(IMAGE_TAG)
-  -name: zabbix-image
-    newName: $(ZBX_IMAGE_NAME)
-    newTag: $(ZBX_IMAGE_TAG)
-  -name: redis-image
-    newName: $(REDIS_IMAGE_NAME)
-    newTag: $(REDIS_IMAGE_TAG)
+# images:
+#   - name: image
+#     newName: $(IMAGE_NAME)
+#     newTag: $(IMAGE_TAG)
+#   - name: zabbix-image
+#     newName: $(ZBX_IMAGE_NAME)
+#     newTag: $(ZBX_IMAGE_TAG)

@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-world-pod
+  namespace: realchat
+  labels:
+    app: hello-world
+    component: test
+spec:
+  containers:
+  - name: hello-world
+    image: busybox:latest
+    command: 
+    - /bin/sh
+    - -c
+    - |
+      echo "Hello World! Testing PVC mounts..."
+      echo "==================================="
+      echo "Backend PVC mounted at: /backend-data"
+      echo "Chat API PVC mounted at: /chat-api-data"  
+      echo "Frontend PVC mounted at: /frontend-data"
+      echo "Logs PVC mounted at: /logs-data"
+      echo ""
+      echo "Creating test files in each mount..."
+      
+      # Create test files in each PVC
+      echo "Hello from backend!" > /backend-data/backend-test.txt
+      echo "Hello from chat-api!" > /chat-api-data/chat-api-test.txt
+      echo "Hello from frontend!" > /frontend-data/frontend-test.txt
+      echo "Hello from logs!" > /logs-data/logs-test.txt
+      
+      echo "Test files created successfully!"
+      echo ""
+      echo "Listing contents of each mount:"
+      echo "Backend PVC contents:"
+      ls -la /backend-data/
+      echo ""
+      echo "Chat API PVC contents:"
+      ls -la /chat-api-data/
+      echo ""
+      echo "Frontend PVC contents:"
+      ls -la /frontend-data/
+      echo ""
+      echo "Logs PVC contents:"
+      ls -la /logs-data/
+      echo ""
+      echo "PVC test completed. Keeping pod alive for inspection..."
+      
+      # Keep the pod running for inspection
+      while true; do
+        echo "Pod is running... $(date)"
+        sleep 30
+      done
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+    volumeMounts:
+    - name: backend-storage
+      mountPath: /backend-data
+    - name: chat-api-storage
+      mountPath: /chat-api-data
+    - name: frontend-storage
+      mountPath: /frontend-data
+    - name: logs-storage
+      mountPath: /logs-data
+  volumes:
+  - name: backend-storage
+    persistentVolumeClaim:
+      claimName: backend-pvc
+  - name: chat-api-storage
+    persistentVolumeClaim:
+      claimName: chat-api-pvc
+  - name: frontend-storage
+    persistentVolumeClaim:
+      claimName: frontend-pvc
+  - name: logs-storage
+    persistentVolumeClaim:
+      claimName: logs-pvc
+  restartPolicy: Always
+

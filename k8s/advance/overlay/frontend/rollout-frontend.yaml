@@ -17,16 +17,23 @@ spec:
       labels:
         app: frontend
     spec:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnspecified: DoNotSchedule
-          labelSelector:
-            app: frontend
+      # topologySpreadConstraints:
+      #   - maxSkew: 1
+      #     topologyKey: topology.kubernetes.io/zone
+      #     whenUnsatisfiable: DoNotSchedule
+      #     labelSelector:
+      #       app: frontend
       initContainers:
-        - name:  wait-for-chat-api
+        - name:  wait-for-backend
           image: busybox:1.28
-          command: ['sh', '-c', 'until nslookup chat-api.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local && wget --spider -T 1 http://${BACKEND_URL}:5666/health; do echo waiting for chat-api; sleep 2; done;']
+          command: 
+          - sh
+          - -c
+          - |
+            until nslookup $(echo $BACKEND_URL | cut -d/ -f3 | cut -d: -f1) && wget --spider -T 5 $BACKEND_URL/health; do
+              echo waiting for backend
+              sleep 2
+            done
           env:
           - name: BACKEND_URL
             valueFrom:
@@ -35,7 +42,14 @@ spec:
                 key: BACKEND_URL
         - name: wait-for-redis
           image: busybox:1.28
-          command: ['sh', '-c', 'until nslookup ${REDIS_NS} && nc -z ${REDIS_NS} 6379; do echo waiting for redis; sleep 2; done;']
+          command: 
+          - sh
+          - -c
+          - |
+            until nslookup ${REDIS_NS} && nc -z ${REDIS_NS} 6379; do
+              echo waiting for redis and stuff
+              sleep 2
+            done
           env:
           - name: REDIS_NS
             valueFrom:
@@ -44,13 +58,13 @@ spec:
                 key: REDIS_NS
       containers:
       - name: main
-        image: image          #kustomize
+        image: $(IMAGE_NAME)          #kustomize
         imagePullPolicy: Always
         resources:
           requests:
             memory: ""
             cpu: ""
-          limites:
+          limits:
             memory: ""
             cpu: ""
         ports:
@@ -58,7 +72,7 @@ spec:
           containerPort: 8080
           protocol: TCP
         readinessProbe:       #kustomize
-          httpGets:
+          httpGet:
             path: /
             port: 8080
           initialDelaySeconds: 120
@@ -66,8 +80,8 @@ spec:
           timeoutSeconds: 60
           successThreshold: 1
           failureThreshold: 1
-        livenessProbeProbe:      #kustomize
-          httpGets:
+        livenessProbe:      #kustomize
+          httpGet:
             path: /
             port: 8080
           initialDelaySeconds: 120
@@ -75,9 +89,6 @@ spec:
           timeoutSeconds: 60
           successThreshold: 1
           failureThreshold: 3
-        command: ["/bin/sh", "-c"]
-        args:
-        - sudo npm start;
         envFrom:
         - configMapRef:
             name: cm            #kustomize
@@ -98,11 +109,11 @@ spec:
         volumeMounts:
         - name : logs-pv
           mountPath: /data/logs
-        # - name : frontend-pv
-        #   mountPath: /app/public
-
+        # - name : backend-pv
+        #   mountPath: /app/uploads
+      
       - name: zabbix-agentd
-        image: zabbix-image
+        image: $(ZBX_IMAGE_NAME)
         imagePullPolicy: Always
         resources:
           requests:
@@ -111,10 +122,9 @@ spec:
           limites:
             memory: "100Mi"
             cpu: "80m"
-          volumeMounts:
-          - name: zabbix-agent-cm
-            mountPath: /etc/zabbix/zabbix_agentd.conf
-            subPath: zabbix_agentd.conf
+        volumeMounts:
+        - name: zabbix-agent-cm
+          mountPath: /etc/zabbix/
 
       terminationGracePeriodSeconds: 1000
       volumes:

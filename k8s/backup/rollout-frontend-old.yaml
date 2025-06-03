@@ -1,0 +1,129 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout
+spec:
+  strategy:
+    blueGreen:
+      activeService: service
+      previewService: green
+      autoPromotionEnabled: false
+  replicas: 1 # kustomize
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnspecified: DoNotSchedule
+          labelSelector:
+            app: frontend
+      initContainers:
+        - name:  wait-for-chat-api
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup chat-api.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local && wget --spider -T 1 http://${BACKEND_URL}:5666/health; do echo waiting for chat-api; sleep 2; done;']
+          env:
+          - name: BACKEND_URL
+            valueFrom:
+              configMapKeyRef:
+                name: cm
+                key: BACKEND_URL
+        - name: wait-for-redis
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nslookup ${REDIS_NS} && nc -z ${REDIS_NS} 6379; do echo waiting for redis; sleep 2; done;']
+          env:
+          - name: REDIS_NS
+            valueFrom:
+              configMapKeyRef:
+                name: cm
+                key: REDIS_NS
+      containers:
+      - name: main
+        image: image          #kustomize
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: ""
+            cpu: ""
+          limites:
+            memory: ""
+            cpu: ""
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        readinessProbe:       #kustomize
+          httpGets:
+            path: /
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 1
+        livenessProbeProbe:      #kustomize
+          httpGets:
+            path: /
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          timeoutSeconds: 60
+          successThreshold: 1
+          failureThreshold: 3
+        command: ["/bin/sh", "-c"]
+        args:
+        - sudo npm start;
+        envFrom:
+        - configMapRef:
+            name: cm            #kustomize
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: SVCPOD
+          valueFrom:
+            configMapKeyRef:
+              name: cm
+              key: SVCPOD
+        - name: LOG_PATH
+          value: /data/logs/$(SVCPOD)/
+
+        # Other environment variables as needed
+        volumeMounts:
+        - name : logs-pv
+          mountPath: /data/logs
+        # - name : frontend-pv
+        #   mountPath: /app/public
+
+      - name: zabbix-agentd
+        image: zabbix-image
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "80m"
+          limites:
+            memory: "100Mi"
+            cpu: "80m"
+          volumeMounts:
+          - name: zabbix-agent-cm
+            mountPath: /etc/zabbix/zabbix_agentd.conf
+            subPath: zabbix_agentd.conf
+
+      terminationGracePeriodSeconds: 1000
+      volumes:
+      - name: logs-pv
+        persistentVolumeClaim:
+          claimName: logs-pvc
+      - name: frontend-pv
+        persistentVolumeClaim:
+          claimName: frontend-pvc
+      - name: zabbix-agent-cm
+        configMap:
+          name: zabbix-agent-cm

@@ -17,16 +17,23 @@ spec:
       labels:
         app: chat-api
     spec:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnspecified: DoNotSchedule
-          labelSelector:
-            app: chat-api
+      # topologySpreadConstraints:
+      #   - maxSkew: 1
+      #     topologyKey: topology.kubernetes.io/zone
+      #     whenUnsatisfiable: DoNotSchedule
+      #     labelSelector:
+      #       app: chat-api
       initContainers:
         - name: wait-for-backend
           image: busybox:1.28
-          command: ['sh', '-c', 'until nslookup chat-backend.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local && wget --spider -T 1 http://${EXTERNAL_API_URL}/health; do echo waiting for backend; sleep 2; done;']
+          command: 
+          - sh
+          - -c
+          - |
+            until nslookup $(echo $EXTERNAL_API_URL | cut -d/ -f3 | cut -d: -f1) && wget -O- -T 5 $EXTERNAL_API_URL/health; do 
+              echo waiting for backend
+              sleep 2
+            done
           env:
           - name: EXTERNAL_API_URL
             valueFrom:
@@ -35,7 +42,14 @@ spec:
                 key: EXTERNAL_API_URL
         - name: wait-for-rabbitmq
           image: busybox:1.28
-          command: ['sh', '-c', 'until nslookup ${RABBITMQ_NS} && nc -z ${RABBITMQ_NS} 5672; do echo waiting for rabbitmq; sleep 2; done;']
+          command: 
+          - sh
+          - -c
+          - |
+            until nslookup ${RABBITMQ_NS} && nc -z ${RABBITMQ_NS} 5672; do
+              echo waiting for rabbitmq
+              sleep 2
+            done
           env:
           - name: RABBITMQ_NS
             valueFrom:
@@ -44,13 +58,13 @@ spec:
                 key: RABBITMQ_NS
       containers:
       - name: main
-        image: image          #kustomize
+        image: $(IMAGE_NAME)          #kustomize
         imagePullPolicy: Always
         resources:
           requests:
             memory: ""
             cpu: ""
-          limites:
+          limits:
             memory: ""
             cpu: ""
         ports:
@@ -58,7 +72,7 @@ spec:
           containerPort: 5666
           protocol: TCP
         readinessProbe:       #kustomize
-          httpGets:
+          httpGet:
             path: /
             port: 5666
           initialDelaySeconds: 120
@@ -66,8 +80,8 @@ spec:
           timeoutSeconds: 60
           successThreshold: 1
           failureThreshold: 1
-        livenessProbeProbe:      #kustomize
-          httpGets:
+        livenessProbe:      #kustomize
+          httpGet:
             path: /
             port: 5666
           initialDelaySeconds: 120
@@ -95,11 +109,11 @@ spec:
         volumeMounts:
         - name : logs-pv
           mountPath: /data/logs
-        # - name : chat-api-pv
+        # - name : backend-pv
         #   mountPath: /app/uploads
       
       - name: zabbix-agentd
-        image: zabbix-image
+        image: $(ZBX_IMAGE_NAME)
         imagePullPolicy: Always
         resources:
           requests:
@@ -108,10 +122,9 @@ spec:
           limites:
             memory: "100Mi"
             cpu: "80m"
-          volumeMounts:
-          - name: zabbix-agent-cm
-            mountPath: /etc/zabbix/zabbix_agentd.conf
-            subPath: zabbix_agentd.conf
+        volumeMounts:
+        - name: zabbix-agent-cm
+          mountPath: /etc/zabbix/
 
       terminationGracePeriodSeconds: 1000
       volumes:

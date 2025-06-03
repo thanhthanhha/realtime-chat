@@ -1,0 +1,37 @@
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-hook-executor
+  namespace: realchat
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: realchat
+  name: argocd-hook-executor
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "delete"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get", "list", "patch"]
+- apiGroups: ["argoproj.io"]
+  resources: ["rollouts"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-hook-executor
+  namespace: realchat
+subjects:
+- kind: ServiceAccount
+  name: argocd-hook-executor
+  namespace: realchat
+roleRef:
+  kind: Role
+  name: argocd-hook-executor
+  apiGroup: rbac.authorization.k8s.io

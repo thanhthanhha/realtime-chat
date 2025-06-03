@@ -295,7 +295,7 @@ clustering:
   ## forceBoot executes 'rabbitmqctl force_boot' to force boot cluster shut down unexpectedly in an unknown order
   ## ref: https://www.rabbitmq.com/rabbitmqctl.8.html#force_boot
   ##
-  forceBoot: false
+  forceBoot: true
   ## @param clustering.partitionHandling Switch Partition Handling Strategy. Either `autoheal` or `pause_minority` or `pause_if_all_down` or `ignore`
   ## ref: https://www.rabbitmq.com/partitions.html#automatic-handling
   ##
@@ -530,6 +530,9 @@ configuration: |-
   vm_memory_high_watermark.{{ .Values.memoryHighWatermark.type }} = {{ .Values.memoryHighWatermark.value }}
   {{- end }}
   {{- end }}
+  ## logging
+  log.console = true
+  log.console.level = debug
   {{- if .Values.tcpListenOptions.enabled }}
   ## TCP Listen Options
   ##
@@ -676,7 +679,7 @@ extraSecretsPrependReleaseName: false
 
 ## @param replicaCount Number of RabbitMQ replicas to deploy
 ##
-replicaCount: 1
+replicaCount: 2
 ## @param schedulerName Use an alternate scheduler, e.g. "stork".
 ## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
 ##

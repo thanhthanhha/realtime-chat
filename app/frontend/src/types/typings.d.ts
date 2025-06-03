@@ -7,6 +7,13 @@ interface SidebarOption {
   Icon: Icon
 }
 
+export interface RetryOptions {
+  maxRetries?: number;
+  delay?: number;
+  exponentialBackoff?: boolean;
+  onRetry?: (attempt: number, error: any) => void;
+}
+
 declare interface User {
   id: string;           // hash_key
   name: string;         // used in NameIndex GSI
