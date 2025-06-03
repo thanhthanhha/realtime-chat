@@ -293,7 +293,7 @@ Advanced deployment additionally provides:
 
 ### Ingress Configuration
 - **Basic**: Simple ingress rules in `common/`
-- **Advanced**: Environment-specific ingress with SSL/TLS
+- **Advanced**: Environment-specific ingress
 
 ### Service Communication
 - **Backend ↔ Database**: Direct connection via DynamoDB
