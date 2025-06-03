@@ -286,9 +286,8 @@ Advanced deployment additionally provides:
 
 ### Advanced Strategy  
 - **Blue-Green deployments** for zero-downtime updates
-- **Canary releases** for gradual rollouts
 - **Automated rollbacks** on failure detection
-- **Traffic splitting** during deployments
+- **Traffic splitting** during deployments/used Resource Hooks for service mapping
 
 ## 🌐 Networking
 
