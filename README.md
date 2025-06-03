@@ -29,7 +29,7 @@ realchat-friendzone/
 The backend service handles user authentication, friend management, and data persistence. It's built with:
 
 - Express.js for RESTful API endpoints
-- MongoDB for database storage
+- DynamoDB for database storage
 - JWT for authentication
 - Input validation middleware
 - Dockerized for containerized deployment
@@ -71,7 +71,7 @@ The chat-api handles real-time communication between users:
 ### Backend Technologies
 - **Node.js** - Runtime environment
 - **Express.js** - Web framework
-- **MongoDB** - Database
+- **DynamoDB** - Database
 - **JWT** - Authentication
 - **Docker** - Containerization
 
@@ -96,7 +96,7 @@ The application follows a microservices architecture with the following services
 graph TB
     A[Frontend - Next.js] --> B[Backend API - Node.js]
     A --> C[Chat API - WebSocket]
-    B --> D[MongoDB]
+    B --> D[DynamoDB]
     A --> E[Redis Cache]
     C --> F[RabbitMQ]
 ```
@@ -367,7 +367,7 @@ Key configuration files:
 ### Environment Variables
 
 **Backend**:
-- `MONGODB_URI` - MongoDB connection string
+- `DynamoDB_URI` - DynamoDB connection string
 - `JWT_SECRET` - JWT signing secret
 - `REDIS_URL` - Redis connection URL
 
