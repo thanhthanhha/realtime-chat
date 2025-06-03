@@ -97,9 +97,8 @@ graph TB
     A[Frontend - Next.js] --> B[Backend API - Node.js]
     A --> C[Chat API - WebSocket]
     B --> D[MongoDB]
-    B --> E[Redis Cache]
+    A --> E[Redis Cache]
     C --> F[RabbitMQ]
-    C --> E
 ```
 
 # 🛠️ Infrastructure
