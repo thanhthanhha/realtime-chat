@@ -235,7 +235,6 @@ The `environment/` directory contains essential cluster services required by bot
    ```bash
    cd environment/
    ./helm-install.sh
-   ./crds-install.sh
    ```
 
 2. **Install Argo Rollouts CRDs**:
@@ -250,6 +249,7 @@ The `environment/` directory contains essential cluster services required by bot
    kubectl apply -f backend/
    kubectl apply -f chat-api/
    kubectl apply -f frontend/
+   kubectl apply -f helm/
    ```
 
 ## 🔧 Configuration Management
